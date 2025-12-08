@@ -1,4 +1,10 @@
 
+export enum GameGenre {
+  JAZZ = 'JAZZ',
+  ELECTRONIC = 'ELECTRONIC',
+  FUNK = 'FUNK',
+}
+
 export interface HandCoordinates {
   x: number;
   y: number;
@@ -32,6 +38,6 @@ export interface Particle {
 }
 
 export type BeatType = 'SNARE' | 'KICK';
-export type NoteType = 'LEAD' | 'SAX' | 'BASS';
+export type NoteType = 'LEAD' | 'RHYTHM' | 'BASS';
 export type BeatCallback = (type: BeatType) => void;
 export type NoteCallback = (type: NoteType, x: number, y: number) => void;
