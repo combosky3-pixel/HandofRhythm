@@ -177,8 +177,8 @@ const JazzCanvas: React.FC<JazzCanvasProps> = ({ appState, setAppState, genre })
         for(let i = noteTriggersRef.current.length - 1; i >= 0; i--) {
             const t = noteTriggersRef.current[i];
             p.noFill();
-            // Left (Bass) = Cyan/Purple, Right (Lead) = Orange/Gold
-            let h = t.type === 'left' ? 200 : 40; 
+            // Left (Bass/Sax) = Purple/Blue, Right (Lead/Trumpet) = Gold/Orange
+            let h = t.type === 'left' ? 260 : 45; 
             p.stroke(h, 80, 100, t.life * 100);
             p.strokeWeight(3 + (smoothedAudio * 5));
             p.circle(t.x * p.width, t.y * p.height, (1.0 - t.life) * 300);
@@ -197,7 +197,7 @@ const JazzCanvas: React.FC<JazzCanvasProps> = ({ appState, setAppState, genre })
       };
 
       // =================================================================
-      // MODE 0: JAZZ (Dual-Hand Liquid Flow)
+      // MODE 0: JAZZ (Dual-Hand Liquid Flow - Sax vs Trumpet)
       // =================================================================
       class LiquidParticle {
         pos: p5.Vector; vel: p5.Vector; acc: p5.Vector; prevPos: p5.Vector;
@@ -215,20 +215,46 @@ const JazzCanvas: React.FC<JazzCanvasProps> = ({ appState, setAppState, genre })
         update(p: p5, hands: {left: p5.Vector|null, right: p5.Vector|null}, audio: number) {
             this.prevPos = this.pos.copy();
             
-            // Audio Energy increases chaotic movement
+            // Determine Dominance and Role
+            let leftDist = hands.left ? p.dist(this.pos.x, this.pos.y, hands.left.x, hands.left.y) : 9999;
+            let rightDist = hands.right ? p.dist(this.pos.x, this.pos.y, hands.right.x, hands.right.y) : 9999;
+            
+            // Influence threshold
+            const THRESHOLD = 600;
+            let isTrumpet = rightDist < leftDist && rightDist < THRESHOLD;
+            let isSax = leftDist <= rightDist && leftDist < THRESHOLD;
+
+            // Base Noise Flow
             let nScale = 0.005;
-            let timeScale = p.frameCount * (0.005 + (audio * 0.02)); 
+            
+            // Trumpet (Right) moves faster through the noise field (sharper variation)
+            let timeSpeed = isTrumpet ? 0.02 : 0.005;
+            let timeScale = p.frameCount * (timeSpeed + (audio * 0.02)); 
+            
             let angle = p.noise(this.pos.x * nScale, this.pos.y * nScale, timeScale) * p.TWO_PI * 4;
             let flow = p5.Vector.fromAngle(angle);
-            flow.mult(0.5 + (audio * 2)); // Stronger flow on loud audio
-            this.acc.add(flow);
 
-            // Hand Gravity
+            if (isTrumpet) {
+                // TRUMPET PHYSICS: Sharp, Fast, Explosive Attack
+                // Multiply flow force significantly
+                flow.mult(1.5 + (audio * 10)); // Huge burst on audio spike
+                this.acc.add(flow);
+                // Much higher speed limit for trumpet
+                this.maxSpeed = this.baseMaxSpeed * (2.5 + audio * 4); 
+            } else {
+                // SAX/NEUTRAL PHYSICS: Smooth, Sultry, Flowing
+                flow.mult(0.5 + (audio * 2)); 
+                this.acc.add(flow);
+                // Standard speed
+                this.maxSpeed = this.baseMaxSpeed * (1 + audio * 2);
+            }
+
+            // Hand Attraction (Gravity)
             const applyHandForce = (hPos: p5.Vector | null) => {
                 if(!hPos) return;
                 let dir = p5.Vector.sub(hPos, this.pos);
                 let d = dir.mag();
-                if (d < 400) {
+                if (d < THRESHOLD) {
                     dir.normalize();
                     dir.mult(0.5); 
                     this.acc.add(dir);
@@ -238,7 +264,6 @@ const JazzCanvas: React.FC<JazzCanvasProps> = ({ appState, setAppState, genre })
             applyHandForce(hands.right);
 
             this.vel.add(this.acc);
-            this.maxSpeed = this.baseMaxSpeed * (1 + audio * 3); // Velocity scales with volume
             this.vel.limit(this.maxSpeed);
             this.pos.add(this.vel);
             this.acc.mult(0);
@@ -251,28 +276,45 @@ const JazzCanvas: React.FC<JazzCanvasProps> = ({ appState, setAppState, genre })
         }
 
         show(p: p5, hands: {left: p5.Vector|null, right: p5.Vector|null}, audio: number) {
-            // Dual Color Logic
+            // Determine Color based on Proximity Role
             let leftDist = hands.left ? p.dist(this.pos.x, this.pos.y, hands.left.x, hands.left.y) : 9999;
             let rightDist = hands.right ? p.dist(this.pos.x, this.pos.y, hands.right.x, hands.right.y) : 9999;
 
-            let hueVal;
-            if (leftDist < rightDist && leftDist < 500) {
-                 // Closer to Left (Cool: 200-260)
-                 let mapDist = p.map(leftDist, 0, 500, 0, 1);
-                 hueVal = p.lerp(200, 260, mapDist);
-            } else if (rightDist <= leftDist && rightDist < 500) {
-                 // Closer to Right (Warm: 340-40)
-                 let mapDist = p.map(rightDist, 0, 500, 0, 1);
-                 hueVal = p.lerp(40, 340, mapDist);
-            } else {
-                 // Neutral (Background flow)
-                 hueVal = 220 + (Math.sin(p.frameCount * 0.01) * 20);
-            }
+            let hueVal, sat, bri, alpha;
+            const INFLUENCE_RADIUS = 500;
 
-            // Energy Brightness
-            let sat = p.map(audio, 0, 1, 80, 20); // High energy = closer to white (low sat)
-            let bri = p.map(audio, 0, 1, 60, 100);
-            let alpha = p.map(audio, 0, 1, 40, 90);
+            if (leftDist < rightDist && leftDist < INFLUENCE_RADIUS) {
+                 // LEFT HAND: SMOOTH SAXOPHONE
+                 // Palette: Deep Purples, Velvety Blues, Magenta
+                 // Range: HSB 260 (Purple) -> 300 (Magenta)
+                 let mapDist = p.map(leftDist, 0, INFLUENCE_RADIUS, 0, 1);
+                 hueVal = p.lerp(260, 310, mapDist); // Purple to Magenta
+                 
+                 // Deep, rich saturation
+                 sat = 90; 
+                 // Brightness pulses with audio but stays somewhat deep
+                 bri = p.map(audio, 0, 1, 50, 95); 
+                 alpha = p.map(audio, 0, 1, 60, 100);
+
+            } else if (rightDist <= leftDist && rightDist < INFLUENCE_RADIUS) {
+                 // RIGHT HAND: BRASSY TRUMPET
+                 // Palette: Metallic Brass & Gold
+                 // Range: HSB 35 (Orange Gold) -> 55 (Yellow)
+                 let mapDist = p.map(rightDist, 0, INFLUENCE_RADIUS, 0, 1);
+                 hueVal = p.lerp(35, 55, mapDist); 
+                 
+                 // Metallic effect: High brightness, desaturates (whitens) on high audio energy
+                 sat = p.map(audio, 0, 1, 90, 40); // Becomes whiter/shinier when loud
+                 bri = 100; // Always bright
+                 alpha = 90;
+
+            } else {
+                 // NEUTRAL BACKGROUND FLOW
+                 hueVal = 220 + (Math.sin(p.frameCount * 0.01) * 20); // Subtle blue shift
+                 sat = 40;
+                 bri = 30;
+                 alpha = 30;
+            }
 
             p.stroke(hueVal, sat, bri, alpha);
             p.strokeWeight(1 + (audio * 4));

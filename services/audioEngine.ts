@@ -1,4 +1,3 @@
-
 import * as Tone from 'tone';
 import { BeatCallback, NoteCallback, GameGenre } from '../types';
 
@@ -343,7 +342,9 @@ class AudioEngine {
             if (step % 4 === 0) {
                 const bassNote = JAZZ_BASS[Math.floor(Math.random()*JAZZ_BASS.length)];
                 this.bassSynth?.triggerAttackRelease(bassNote, "4n", time);
-                if(this.noteCallback) Tone.Draw.schedule(() => this.noteCallback!('BASS', 0.5, 1.0), time);
+                Tone.Draw.schedule(() => {
+                    this.noteCallback?.('BASS', 0.5, 1.0);
+                }, time);
                 this.drumHiHat?.triggerAttackRelease("C5", "32n", time);
             }
             if (step === 6 || step === 14) {
@@ -354,16 +355,22 @@ class AudioEngine {
             if (step % 2 === 0) {
                 const bassNote = ELECTRONIC_BASS[Math.floor(Math.random()*ELECTRONIC_BASS.length)];
                 this.bassSynth?.triggerAttackRelease(bassNote, "8n", time);
-                if(this.noteCallback) Tone.Draw.schedule(() => this.noteCallback!('BASS', 0.5, 1.0), time);
+                Tone.Draw.schedule(() => {
+                    this.noteCallback?.('BASS', 0.5, 1.0);
+                }, time);
                 this.drumHiHat?.triggerAttackRelease("32n", time, step % 4 === 0 ? 1 : 0.5);
             }
             if (step === 0 || step === 8 || step === 10) {
                 this.drumKick?.triggerAttackRelease("C1", "16n", time);
-                if(this.beatCallback) Tone.Draw.schedule(() => this.beatCallback!('KICK'), time);
+                Tone.Draw.schedule(() => {
+                    this.beatCallback?.('KICK');
+                }, time);
             }
             if (step === 4 || step === 12) {
                 (this.drumSnare as Tone.NoiseSynth)?.triggerAttackRelease("16n", time);
-                if(this.beatCallback) Tone.Draw.schedule(() => this.beatCallback!('SNARE'), time);
+                Tone.Draw.schedule(() => {
+                    this.beatCallback?.('SNARE');
+                }, time);
             }
 
           } else if (this.currentGenre === GameGenre.FUNK) {
@@ -385,7 +392,9 @@ class AudioEngine {
             else if (step === 14) this.bassSynth?.triggerAttackRelease(fifth, "16n", time, 0.8); // Turnaround
 
             if (step === 0 || step === 6 || step === 14) {
-                if(this.noteCallback) Tone.Draw.schedule(() => this.noteCallback!('BASS', 0.5, 1.0), time);
+                Tone.Draw.schedule(() => {
+                    this.noteCallback?.('BASS', 0.5, 1.0);
+                }, time);
             }
 
             // Kick: 1 and... and 3... 
@@ -394,13 +403,17 @@ class AudioEngine {
             else if (step === 10) this.drumKick?.triggerAttackRelease("C1", "16n", time, 0.7);
 
             if (step === 0 || step === 10) {
-                if(this.beatCallback) Tone.Draw.schedule(() => this.beatCallback!('KICK'), time);
+                Tone.Draw.schedule(() => {
+                    this.beatCallback?.('KICK');
+                }, time);
             }
 
             // Snare: Backbeat on 2 and 4 (Step 4 and 12) + Ghost notes
             if (step === 4 || step === 12) {
                 (this.drumSnare as Tone.NoiseSynth)?.triggerAttackRelease("16n", time);
-                if(this.beatCallback) Tone.Draw.schedule(() => this.beatCallback!('SNARE'), time);
+                Tone.Draw.schedule(() => {
+                    this.beatCallback?.('SNARE');
+                }, time);
             } else if (step === 15) {
                 (this.drumSnare as Tone.NoiseSynth)?.triggerAttackRelease("32n", time, 0.3); // Ghost at end
             }
@@ -473,7 +486,9 @@ class AudioEngine {
                 this.rightSynth.triggerAttackRelease(note, "8n", triggerTime);
                 this.lastRightTime = triggerTime;
                 
-                if (this.noteCallback) Tone.Draw.schedule(() => this.noteCallback!('LEAD', x, y), triggerTime);
+                Tone.Draw.schedule(() => {
+                    this.noteCallback?.('LEAD', x, y);
+                }, triggerTime);
             } catch(e) { console.warn("Right hand scheduling error", e); }
         }
     }
@@ -531,7 +546,9 @@ class AudioEngine {
                 this.lastLeftTime = triggerTime;
                 this.lastLeftNoteIndex = noteIndex;
 
-                if (this.noteCallback) Tone.Draw.schedule(() => this.noteCallback!('RHYTHM', x, y), triggerTime);
+                Tone.Draw.schedule(() => {
+                    this.noteCallback?.('RHYTHM', x, y);
+                }, triggerTime);
               } catch(e) { console.warn("Left hand scheduling error", e); }
           }
       }
