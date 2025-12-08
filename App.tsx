@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import JazzCanvas from './components/JazzCanvas';
 import { AppState, GameGenre } from './types';
 import { audioEngine } from './services/audioEngine';
@@ -74,18 +74,54 @@ const App: React.FC = () => {
       }
   };
 
+  const getTimestamp = (): string => {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const mo = pad(now.getMonth() + 1);
+    const dd = pad(now.getDate());
+    const hh = pad(now.getHours());
+    const mm = pad(now.getMinutes());
+    const ss = pad(now.getSeconds());
+    return `${yyyy}-${mo}-${dd}_${hh}-${mm}-${ss}`;
+  };
+
   const saveVideoRecording = () => {
       const mimeType = recordingMimeTypeRef.current || 'video/webm';
       const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const blob = new Blob(recordedChunksRef.current, { type: mimeType });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
-      anchor.download = `Hands_Of_Rhythm_${currentGenre}.${extension}`;
+      
+      const timestamp = getTimestamp();
+      let filename = `Recording_${timestamp}`;
+      
+      if (currentGenre === GameGenre.JAZZ) {
+          filename = `Jazz_Sax_vs_Trumpet_${timestamp}`;
+      } else if (currentGenre === GameGenre.FUNK) {
+          filename = `Neon_Vortex_Dimension_${timestamp}`;
+      } else if (currentGenre === GameGenre.ELECTRONIC) {
+          filename = `Cyber_Bass_Overload_${timestamp}`;
+      }
+      
+      anchor.download = `${filename}.${extension}`;
       anchor.href = url;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 100);
       recordedChunksRef.current = [];
   };
+
+  // Keyboard Listener for 'R'
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'r' || e.key === 'R') && appState === AppState.RUNNING) {
+        if (!isRecording) startVideoRecording();
+        else stopVideoRecording();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [appState, isRecording]);
 
   return (
     <div className="relative w-screen h-screen bg-black text-white font-sans overflow-hidden">
@@ -103,13 +139,21 @@ const App: React.FC = () => {
                 ← MENU
             </button>
 
+            {/* Visual REC Indicator (Top Right Corner) */}
+            {isRecording && (
+                <div className="absolute top-2 right-2 z-[60] flex items-center gap-2 pointer-events-none">
+                    <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_red]"></div>
+                    <span className="text-red-500 font-bold text-xs tracking-widest">REC</span>
+                </div>
+            )}
+
             <button 
                 onClick={handleToggleRecord}
                 className={`absolute top-6 right-6 z-50 px-6 py-2 rounded-full font-bold border transition-all shadow-lg flex items-center gap-2 ${
                     isRecording ? 'bg-red-600 border-red-600 animate-pulse' : 'bg-transparent border-white hover:bg-white hover:text-black'
                 }`}
             >
-                {isRecording ? 'STOP & SAVE' : 'REC VIDEO'}
+                {isRecording ? 'STOP & SAVE' : 'REC VIDEO (R)'}
             </button>
         </>
       )}
