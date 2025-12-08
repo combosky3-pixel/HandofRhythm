@@ -10,6 +10,8 @@ export interface HandState {
   right: HandCoordinates | null;
   isLeftPinching: boolean;
   isRightPinching: boolean;
+  leftSqueeze: number; // 0.0 (Open) to 1.0 (Fist)
+  rightSqueeze: number; // 0.0 (Open) to 1.0 (Fist)
 }
 
 export enum AppState {

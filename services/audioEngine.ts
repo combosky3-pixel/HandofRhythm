@@ -1,3 +1,4 @@
+
 import * as Tone from 'tone';
 import { BeatCallback, NoteCallback } from '../types';
 
@@ -44,12 +45,11 @@ class AudioEngine {
     this.limiter = new Tone.Limiter(-1).toDestination();
     
     // Initialize MediaStream Destination for A/V Recording
-    // We access the raw Web Audio Context to create the stream destination
     const context = Tone.context.rawContext as AudioContext;
     this.audioDest = context.createMediaStreamDestination();
     this.limiter.connect(this.audioDest);
     
-    // Spacious Reverb for that Jazz Club feel
+    // Spacious Reverb
     this.reverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 }).connect(this.limiter);
 
     // 2. Transport
@@ -66,77 +66,41 @@ class AudioEngine {
       volume: -2
     }).connect(this.reverb);
 
-    // B. Left Hand: Tenor Saxophone
+    // B. Left Hand: Saxophone
     this.saxSynth = new Tone.MonoSynth({
-        oscillator: { type: "sawtooth" }, // Rich harmonics for "reedy" sound
-        envelope: { 
-            attack: 0.1, // Softer attack (Legato)
-            decay: 0.2, 
-            sustain: 0.8, 
-            release: 0.8 // Breath fade
-        },
+        oscillator: { type: "sawtooth" },
+        envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 0.8 },
         volume: -4
     });
 
-    this.saxVibrato = new Tone.Vibrato({
-        frequency: 5, // Typical vibrato speed
-        depth: 0.1,
-        wet: 0.5
-    }).connect(this.reverb);
-
-    // Dynamic Filter for Expression (controlled by Hand X)
-    this.saxFilter = new Tone.Filter({
-        frequency: 800,
-        type: "lowpass",
-        Q: 2 
-    }).connect(this.saxVibrato);
-
+    this.saxVibrato = new Tone.Vibrato({ frequency: 5, depth: 0.1, wet: 0.5 }).connect(this.reverb);
+    this.saxFilter = new Tone.Filter({ frequency: 800, type: "lowpass", Q: 2 }).connect(this.saxVibrato);
     this.saxSynth.connect(this.saxFilter);
 
-
-    // C. Auto Bass: Double Bass (Thick, Plucky, Automatic)
+    // C. Auto Bass
     this.doubleBass = new Tone.MonoSynth({
-        oscillator: { type: "triangle" }, // Triangle for thick string sound
-        envelope: { 
-            attack: 0.02, 
-            decay: 0.6, 
-            sustain: 0.1, 
-            release: 0.8 
-        },
-        filterEnvelope: {
-            attack: 0.005,
-            decay: 0.3,
-            sustain: 0.2,
-            release: 0.8,
-            baseFrequency: 80,
-            octaves: 2
-        },
-        volume: 2 // BOOSTED as requested (+2)
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.02, decay: 0.6, sustain: 0.1, release: 0.8 },
+        filterEnvelope: { attack: 0.005, decay: 0.3, sustain: 0.2, release: 0.8, baseFrequency: 80, octaves: 2 },
+        volume: 2
     }).connect(this.limiter);
 
-
-    // D. Drums (Backing)
+    // D. Drums
     this.rideCymbal = new Tone.MetalSynth({
-      frequency: 200, 
-      envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
-      harmonicity: 5.1, 
-      modulationIndex: 32, 
-      resonance: 4000, 
-      octaves: 1.5,
+      frequency: 200, envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+      harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
       volume: -2 
     }).connect(this.reverb);
 
     this.kickDrum = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 5, 
-      oscillator: { type: "sine" },
+      pitchDecay: 0.05, octaves: 5, oscillator: { type: "sine" },
       envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 },
       volume: 0 
     }).connect(this.limiter);
 
     // --- LOOPS & SEQUENCES ---
 
-    // 1. Automatic Walking Bass (Quarter Notes)
+    // 1. Automatic Walking Bass
     const bassLoop = new Tone.Loop((time) => {
         if (!this.doubleBass) return;
 
@@ -144,13 +108,11 @@ class AudioEngine {
         const r = Math.random();
         let nextIndex;
         if (r < 0.7) {
-            // Stepwise
             const direction = Math.random() > 0.5 ? 1 : -1;
             nextIndex = this.lastBassNoteIndex + direction;
             if (nextIndex < 0) nextIndex = BASS_SCALE_NOTES.length - 1;
             if (nextIndex >= BASS_SCALE_NOTES.length) nextIndex = 0;
         } else {
-            // Leap
             nextIndex = Math.floor(Math.random() * BASS_SCALE_NOTES.length);
         }
         this.lastBassNoteIndex = nextIndex;
@@ -158,7 +120,6 @@ class AudioEngine {
         const note = BASS_SCALE_NOTES[nextIndex];
         this.doubleBass.triggerAttackRelease(note, "4n", time);
         
-        // Visual callback for Bass
         if (this.noteCallback) {
             Tone.Draw.schedule(() => {
                 this.noteCallback!('BASS', 0.5, 1.0);
@@ -167,7 +128,7 @@ class AudioEngine {
     }, "4n");
 
 
-    // 2. Ride Cymbal (Swing Pattern)
+    // 2. Ride Cymbal
     const rideSeq = new Tone.Sequence((time, vel) => {
       if (vel > 0) {
         const velocity = vel === 1 ? 1.0 : 0.3; 
@@ -175,7 +136,7 @@ class AudioEngine {
       }
     }, [1, [1, 0.5], 1, [1, 0.5]], "4n");
 
-    // 3. Kick Drum (Heartbeat)
+    // 3. Kick Drum
     const kickLoop = new Tone.Loop((time) => {
        this.kickDrum?.triggerAttackRelease("C1", "8n", time);
        if (this.beatCallback) Tone.Draw.schedule(() => this.beatCallback!('KICK'), time);
@@ -198,17 +159,20 @@ class AudioEngine {
   }
 
   public setGlobalEnergy(energy: number) {
-    // We could map energy to drum intensity here if desired
   }
 
-  // Helper to get the audio stream for the Video Recorder
   public getAudioStream(): MediaStream | null {
       return this.audioDest ? this.audioDest.stream : null;
   }
 
-  // Right Hand: Vibes (Quantized)
-  public updateLead(y: number, x: number, trigger: boolean) {
+  // --- STANDARD INTERACTION ---
+
+  // Right Hand: Vibes (Quantized + Detune/Bend)
+  public updateLead(y: number, x: number, trigger: boolean, squeeze: number = 0) {
     if (!this.leadSynth) return;
+
+    const detuneValue = squeeze * -200;
+    this.leadSynth.set({ detune: detuneValue });
 
     if (trigger) {
       const normalizedY = 1 - Math.max(0, Math.min(1, y));
@@ -231,12 +195,17 @@ class AudioEngine {
   }
 
   // Left Hand: Saxophone Control
-  public updateSax(y: number, x: number, trigger: boolean) {
-      if (!this.saxSynth || !this.saxFilter) return;
+  public updateSax(y: number, x: number, trigger: boolean, squeeze: number = 0) {
+      if (!this.saxSynth || !this.saxFilter || !this.saxVibrato) return;
 
-      // 1. Expression (X-Axis -> Filter)
       const filterFreq = 400 + (x * 2600);
       this.saxFilter.frequency.rampTo(filterFreq, 0.1);
+
+      const qValue = 2 + (squeeze * 8);
+      const vibDepth = 0.1 + (squeeze * 0.4);
+      
+      this.saxFilter.Q.rampTo(qValue, 0.1);
+      this.saxVibrato.depth.rampTo(vibDepth, 0.1);
 
       if (trigger) {
           const normalizedY = 1 - Math.max(0, Math.min(1, y));
